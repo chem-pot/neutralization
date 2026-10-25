@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>중화 반응 모형</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600&family=STIX+Two+Text:ital@1&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --mint:#5dc2b0; --mint-deep:#23907f; --mint-soft:#e3f5f1;
+  --yellow:#f4c33b; --salmon:#e9966b; --num:#e8843a;
+  --ink:#231f20; --muted:#646b6c; --line:#d9dddc;
+  --paper:#fff; --panel:#f5f8f7; --stage:#fcfdfd;
+  --gray-tag:#98a2a2; --red:#e2453c;
+  --glass:#9fb3b8; --glass-fill:rgba(255,255,255,.35);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --mint:#5dc2b0; --mint-deep:#7fd8c8; --mint-soft:#1f3b37;
+    --ink:#eef2f1; --muted:#a7b0b0; --line:#3a4443;
+    --paper:#151a1a; --panel:#1d2424; --stage:#192020;
+    --glass:#7d9196; --glass-fill:rgba(255,255,255,.05);
+  }
+}
+:root[data-theme="dark"]{
+  --mint:#5dc2b0; --mint-deep:#7fd8c8; --mint-soft:#1f3b37;
+  --ink:#eef2f1; --muted:#a7b0b0; --line:#3a4443;
+  --paper:#151a1a; --panel:#1d2424; --stage:#192020;
+  --glass:#7d9196; --glass-fill:rgba(255,255,255,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--paper);color:var(--ink);font-family:'Noto Sans KR',sans-serif;-webkit-tap-highlight-color:transparent}
+.ch i{font-family:'STIX Two Text',serif;font-style:italic}
+
+.app{display:grid;grid-template-rows:auto 1fr;height:100vh;padding:14px 18px 18px;gap:12px}
+.top{display:flex;align-items:center;gap:14px}
+.progress{flex:1;height:8px;background:var(--line);border-radius:99px;position:relative;overflow:visible}
+.progress .fill{position:absolute;left:0;top:0;bottom:0;background:var(--mint);border-radius:99px;transition:width .5s}
+.progress .dot{position:absolute;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:var(--mint);border:3px solid var(--paper);box-shadow:0 0 0 2px var(--mint);transition:left .5s}
+
+.main{display:grid;grid-template-columns:230px 1fr;gap:16px;min-height:0}
+.side{display:flex;flex-direction:column;gap:18px;overflow:auto;padding-right:2px}
+.side h2{font-size:15px;margin:0 0 10px;color:var(--mint-deep);display:flex;align-items:center;gap:6px}
+.side h2::before{content:"";width:6px;height:16px;border-radius:3px;background:var(--mint)}
+.legend{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+.legend li{display:flex;align-items:center;gap:10px;font-size:14.5px}
+.legend svg{flex:none}
+.legend .nm{color:var(--muted);font-size:13px;margin-left:auto}
+.terms{display:flex;flex-direction:column;gap:12px}
+.term{background:var(--panel);border-radius:14px;padding:12px 14px}
+.term b{display:block;font-size:15px;margin-bottom:4px}
+.term p{margin:0;font-family:'Noto Serif KR',serif;font-weight:600;font-size:14px;line-height:1.6;color:var(--muted)}
+
+.right{display:grid;grid-template-rows:1fr auto;gap:12px;min-height:0}
+.stage{position:relative;background:var(--stage);border:1px solid var(--line);border-radius:22px;overflow:hidden;min-height:0}
+.stage svg{width:100%;height:100%;display:block;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.toast{position:absolute;left:50%;top:14px;transform:translate(-50%,-20px);opacity:0;background:var(--ink);color:var(--paper);padding:10px 20px;border-radius:99px;font-size:16px;font-weight:500;pointer-events:none;transition:.3s;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis}
+.toast.show{opacity:.92;transform:translate(-50%,0)}
+.restart{position:absolute;left:14px;bottom:14px;min-height:48px;padding:0 20px;border-radius:99px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:500 15px 'Noto Sans KR',sans-serif;cursor:pointer}
+.restart:hover{border-color:var(--mint)}
+
+.panel{background:var(--panel);border-radius:20px;padding:14px 20px 16px}
+.phead{display:flex;align-items:center;gap:12px}
+.tag{background:var(--salmon);color:#fff;font-weight:700;font-size:14px;padding:4px 14px;border-radius:99px}
+.count{color:var(--muted);font-size:14px}
+.next{margin-left:auto;min-height:48px;padding:0 26px;border-radius:99px;border:none;background:var(--line);color:var(--muted);font:700 16px 'Noto Sans KR',sans-serif;cursor:pointer;transition:background .3s,color .3s}
+.next.ready{background:var(--mint);color:#fff}
+.next.blink{animation:blink .45s 2}
+@keyframes blink{50%{transform:scale(1.07);box-shadow:0 0 0 6px var(--mint-soft)}}
+.pbody{display:flex;align-items:baseline;gap:12px;margin-top:8px}
+.num{font-family:'Noto Serif KR',serif;font-weight:600;font-size:28px;color:var(--num)}
+.stext{margin:0;font-family:'Noto Serif KR',serif;font-weight:600;font-size:21px;line-height:1.5}
+.hint{margin:4px 0 0 30px;color:var(--muted);font-size:14.5px}
+
+/* SVG */
+svg text{font-family:'Noto Sans KR',sans-serif}
+.lbl{font-family:'Noto Sans KR',sans-serif;fill:var(--ink)}
+.mut{fill:var(--muted)}
+.ion text{font-family:'Noto Sans KR',sans-serif;font-weight:700;fill:#1d2626}
+.pop{transform-box:fill-box;transform-origin:center;animation:pop .35s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.hit{cursor:pointer}
+.pulse{transform-box:fill-box;transform-origin:center;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.15);opacity:.55}}
+.vbtn rect{fill:var(--paper);stroke:var(--mint);stroke-width:2;transition:fill .2s}
+.vbtn text{font-family:'Noto Sans KR',sans-serif;font-weight:700;fill:var(--ink)}
+.vbtn.done rect{fill:var(--mint-soft)}
+.vbtn.sel rect{fill:var(--mint)}
+.vbtn.sel text{fill:#fff}
+.mono{font-family:'Share Tech Mono',monospace}
+.fade{transition:opacity .4s}
+.defpop{position:absolute;left:50%;top:22px;transform:translate(-50%,-8px);opacity:0;pointer-events:none;width:min(680px,88%);background:var(--paper);border:2px solid var(--mint);border-radius:20px;padding:16px 64px 18px 24px;box-shadow:0 10px 30px rgba(0,0,0,.12);transition:.35s}
+.defpop.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.defpop b{display:inline-block;background:var(--mint);color:#fff;font-size:15px;padding:3px 14px;border-radius:99px;margin-bottom:8px}
+.defpop p{margin:0;font-family:'Noto Serif KR',serif;font-weight:600;font-size:21px;line-height:1.55}
+.defpop .x{position:absolute;right:8px;top:8px;width:48px;height:48px;border:none;background:none;color:var(--muted);font-size:26px;cursor:pointer;border-radius:50%}
+.defpop .x:hover{background:var(--panel)}
+
+@media (max-width:900px), (orientation:portrait){
+  .app{height:auto;min-height:100vh}
+  .main{grid-template-columns:1fr}
+  .side{flex-direction:row;overflow:visible}
+  .legend{flex-direction:row;flex-wrap:wrap;gap:8px 16px}
+  .legend .nm{display:none}
+  .terms-wrap{display:none}
+  .stage{aspect-ratio:1000/600}
+  .stext{font-size:18px}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="progress"><div class="fill" id="pfill"></div><div class="dot" id="pdot"></div></div>
+  </div>
+  <div class="main">
+    <aside class="side">
+      <section>
+        <h2>입자</h2>
+        <ul class="legend" id="legend"></ul>
+      </section>
+      <section class="terms-wrap">
+        <h2>용어</h2>
+        <div class="terms">
+          <div class="term"><b>중화 반응</b><p>산과 염기가 반응하여 물이 생성되는 반응</p></div>
+          <div class="term"><b>중화열</b><p>중화 반응이 일어날 때 발생하는 열</p></div>
+        </div>
+      </section>
+    </aside>
+    <div class="right">
+      <div class="stage">
+        <svg id="svg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet" aria-label="중화 반응 모형"></svg>
+        <div class="defpop" id="defpop" role="dialog" aria-label="중화 반응">
+          <button class="x" id="defx" aria-label="닫기">×</button>
+          <b>중화 반응</b>
+          <p>산의 수소 이온(H<sup>+</sup>)과 염기의 수산화 이온(OH<sup>−</sup>)이 반응하여 물(H<sub>2</sub>O)이 생성되는 반응</p>
+        </div>
+        <div class="toast" id="toast"></div>
+        <button class="restart" id="restart">처음부터</button>
+      </div>
+      <div class="panel">
+        <div class="phead">
+          <span class="tag" id="tag">1단계</span>
+          <span class="count" id="count">1 / 2</span>
+          <button class="next" id="next">다음 단계</button>
+        </div>
+        <div class="pbody"><span class="num" id="num">1</span><p class="stext" id="stext"></p></div>
+        <p class="hint" id="hint"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ───────── 교사용 설정값 ───────── */
+const CFG = {
+  // 학생 실측 온도(℃). 한 줄 = 한 명, 순서는 염산 2·4·6·8·10 mL (수산화 나트륨 10·8·6·4·2 mL)
+  // 그래프에는 각 열의 평균(소수 첫째 자리)이 찍힌다. 빼고 싶은 줄은 지우면 된다.
+  studentData: [
+    [23.8, 26.4, 27.4, 25.9, 23.9],
+    [24.2, 26.6, 28.1, 26.1, 23.8],
+    [21.4, 27.5, 27.9, 25.9, 23.9],
+    [24.8, 26.3, 28.5, 26.8, 24.3],
+    [24.1, 26.0, 27.5, 25.7, 23.4],
+    [23.7, 25.1, 26.2, 23.9, 22.9],
+    [23.5, 25.2, 27.1, 25.2, 23.5],
+    [23.4, 25.9, 28.1, 25.5, 23.5]
+  ],
+  startTemp: 21.5,      // 섞기 전 두 수용액의 온도(℃) — 온도계가 이 값에서 출발한다
+  temps: null,          // 평균 대신 직접 쓸 값. 예: [23, 25.5, 28, 25.5, 23] (null이면 평균 사용)
+  tempMin: 21,          // 그래프 세로축 최솟값(℃)
+  tempMax: 29,          // 그래프 세로축 최댓값(℃)
+  mixTime: 1100,        // 1단계: 두 수용액이 섞이는 시간(ms)
+  reactTime: 700,       // 1단계: H⁺와 OH⁻가 만나 물이 되는 시간(ms)
+  ionStart: 4,          // 3단계: 처음 묽은 염산 속 H⁺(=Cl⁻) 수
+  ionAdds: 8,           // 3단계: 수산화 나트륨 수용액을 넣는 횟수 (한 번에 Na⁺·OH⁻ 1개씩)
+  addTime: 800,         // 3단계: 한 번 넣을 때 입자가 떨어지는 시간(ms)
+  pourTime: 1100,       // 2단계: 수산화 나트륨 수용액을 붓는 시간(ms)
+  thermoTime: 900,      // 2단계: 온도계가 올라가는 시간(ms)
+  labelMode: 'button',  // 액성(염기성·중성·산성) 표시: 'button' 버튼으로 / 'auto' 다섯 개 측정 후 자동 / 'none' 표시 안 함
+  btb: { base: '#3f86d6', neutral: '#3fae5a', acid: '#f2cf3a' } // BTB 용액 색
+};
+
+/* ───────── 데이터 ───────── */
+const COMBOS = [[2,10],[4,8],[6,6],[8,4],[10,2]];
+const TEMPS = CFG.temps || COMBOS.map((_, i) => {
+  const col = CFG.studentData.map(r => r[i]);
+  return Math.round(col.reduce((a, b) => a + b, 0) / col.length * 10) / 10;
+});
+const liq = ([a, b]) => a < b ? 'base' : a === b ? 'neutral' : 'acid';
+
+const STEPS = [
+  { tag: '1단계', cls: '', text: '묽은 염산과 수산화 나트륨 수용액을 혼합한다.',
+    hint: '화살표를 눌러 두 수용액을 혼합해 보자.',
+    ok: '' }, // 1단계는 토스트 대신 중화 반응 팝업이 뜬다
+  { tag: '2단계', cls: '', text: '농도와 온도가 같은 묽은 염산과 수산화 나트륨 수용액의 부피를 달리하여 혼합한다.',
+    hint: '아래의 부피 조합을 누르면 묽은 염산에 수산화 나트륨 수용액을 넣는다.',
+    ok: '다섯 가지 혼합 용액의 온도를 모두 측정했다.' },
+  { tag: '3단계', cls: '', text: '묽은 염산(HCl)에 수산화 나트륨(NaOH) 수용액을 넣어 줄 때 각 이온 수의 변화를 관찰한다.',
+    hint: '[넣기]를 눌러 수산화 나트륨 수용액을 조금씩 넣어 보자.',
+    ok: '수산화 나트륨 수용액을 모두 넣었다.' }
+];
+
+/* ───────── 도구 ───────── */
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('svg');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function el(tag, attrs = {}, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function txt(parent, x, y, s, attrs = {}) {
+  const t = el('text', Object.assign({ x, y, class: 'lbl' }, attrs), parent);
+  t.textContent = s; return t;
+}
+const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+let gen = 0; // 처음부터 누르면 진행 중 애니메이션 중단
+function tween(dur, fn) {
+  const my = gen;
+  return new Promise(res => {
+    if (reduce || dur <= 0) { fn(1); return res(); }
+    const t0 = performance.now();
+    (function f(now) {
+      if (my !== gen) return;
+      const t = Math.min(1, (now - t0) / dur);
+      fn(ease(t));
+      t < 1 ? requestAnimationFrame(f) : res();
+    })(t0);
+  });
+}
+const wait = ms => new Promise(r => setTimeout(r, reduce ? 0 : ms));
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/* ───────── 입자 ───────── */
+const ION = {
+  H:   { r: 12, c1: '#ffffff', c2: '#c9d2d4', main: 'H',  sup: '+', nm: '수소 이온' },
+  Cl:  { r: 22, c1: '#9ad889', c2: '#3f8f3a', main: 'Cl', sup: '−', nm: '염화 이온' },
+  Na:  { r: 15, c1: '#fbe57a', c2: '#d9a514', main: 'Na', sup: '+', nm: '나트륨 이온' },
+  OH:  { r: 20, c1: '#f0a6d8', c2: '#b6458f', main: 'OH', sup: '−', nm: '수산화 이온' },
+  H2O: { r: 21, c1: '#9fd6f5', c2: '#2f86c9', main: 'H2O', nm: '물' }
+};
+const defs = el('defs', {}, svg);
+for (const k in ION) {
+  const g = el('radialGradient', { id: 'g-' + k, cx: '35%', cy: '30%', r: '75%' }, defs);
+  el('stop', { offset: '0%', 'stop-color': ION[k].c1 }, g);
+  el('stop', { offset: '100%', 'stop-color': ION[k].c2 }, g);
+}
+function ionLabel(t, k, fs) {
+  const d = ION[k];
+  if (k === 'H2O') {
+    const a = el('tspan', {}, t); a.textContent = 'H';
+    const b = el('tspan', { dy: fs * .3, 'font-size': fs * .68 }, t); b.textContent = '2';
+    const c = el('tspan', { dy: -fs * .3 }, t); c.textContent = 'O';
+  } else {
+    const a = el('tspan', {}, t); a.textContent = d.main;
+    const b = el('tspan', { dy: -fs * .45, 'font-size': fs * .7 }, t); b.textContent = d.sup;
+  }
+}
+function makeIon(parent, k, x, y, pop, sc = 1) {
+  const d = ION[k];
+  const outer = el('g', { transform: `translate(${x},${y})`, class: 'ion' }, parent);
+  const mid = sc !== 1 ? el('g', { transform: `scale(${sc})` }, outer) : outer;
+  const inner = el('g', pop ? { class: 'pop' } : {}, mid);
+  if (pop && typeof pop === 'number') inner.style.animationDelay = pop + 'ms';
+  if (k === 'H2O') el('ellipse', { rx: d.r + 5, ry: d.r - 3, fill: `url(#g-${k})`, stroke: 'rgba(0,0,0,.18)' }, inner);
+  else el('circle', { r: d.r, fill: `url(#g-${k})`, stroke: 'rgba(0,0,0,.18)' }, inner);
+  const fs = k === 'H' ? 11 : k === 'Na' ? 12 : 13;
+  const t = el('text', { 'text-anchor': 'middle', y: fs * .38, 'font-size': fs }, inner);
+  ionLabel(t, k, fs);
+  return { g: outer, k, x, y, move(nx, ny) { this.x = nx; this.y = ny; outer.setAttribute('transform', `translate(${nx},${ny})`); } };
+}
+// 사이드 범례
+const legend = document.getElementById('legend');
+for (const k of ['H', 'Cl', 'Na', 'OH', 'H2O']) {
+  const li = document.createElement('li');
+  const s = document.createElementNS(NS, 'svg');
+  s.setAttribute('width', 52); s.setAttribute('height', 46); s.setAttribute('viewBox', '-26 -23 52 46');
+  makeIon(s, k, 0, 0);
+  li.appendChild(s);
+  const name = document.createElement('span');
+  name.innerHTML = k === 'H2O' ? 'H<sub>2</sub>O' : ION[k].main + '<sup>' + ION[k].sup + '</sup>';
+  li.appendChild(name);
+  const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = ION[k].nm;
+  li.appendChild(nm);
+  legend.appendChild(li);
+}
+// SVG의 defs 그라디언트는 범례 svg에서도 같은 문서라 참조됨
+
+/* 실험대 위 그림 제목 (농도 조건 명시) */
+function caption(parent, x, y, str) {
+  return txt(parent, x, y, str, { 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 700, fill: 'var(--mint-deep)', class: '' });
+}
+
+/* ───────── 비커 ───────── */
+let clipN = 0;
+function beaker(parent, cx, bottom, w, h, liquidColor) {
+  const x0 = cx - w / 2, x1 = cx + w / 2, top = bottom - h;
+  const g = el('g', {}, parent);
+  el('ellipse', { cx, cy: bottom + 8, rx: w / 2 + 18, ry: 9, fill: 'rgba(0,0,0,.07)' }, g);
+  const inner = `M${x0} ${top + 6} L${x0} ${bottom - 16} Q${x0} ${bottom} ${x0 + 16} ${bottom} L${x1 - 16} ${bottom} Q${x1} ${bottom} ${x1} ${bottom - 16} L${x1} ${top + 6} Z`;
+  el('path', { d: inner, fill: 'var(--glass-fill)' }, g);
+  const id = 'clip' + (++clipN);
+  const cp = el('clipPath', { id }, defs); el('path', { d: inner }, cp);
+  const liquid = el('rect', { x: x0, width: w, y: bottom, height: 0, fill: liquidColor, 'clip-path': `url(#${id})`, class: 'liquid' }, g);
+  const surf = el('line', { x1: x0 + 2, x2: x1 - 2, y1: bottom, y2: bottom, stroke: 'rgba(255,255,255,.7)', 'stroke-width': 2, opacity: 0 }, g);
+  const layer = el('g', {}, g);
+  // 유리
+  el('path', { d: `M${x0 - 10} ${top} Q${x0} ${top} ${x0} ${top + 10} L${x0} ${bottom - 16} Q${x0} ${bottom} ${x0 + 16} ${bottom} L${x1 - 16} ${bottom} Q${x1} ${bottom} ${x1} ${bottom - 16} L${x1} ${top + 6} L${x1 + 4} ${top}`,
+    fill: 'none', stroke: 'var(--glass)', 'stroke-width': 3, 'stroke-linejoin': 'round' }, g);
+  for (let i = 1; i <= 4; i++) el('line', { x1: x0 + 8, x2: x0 + (i % 2 ? 20 : 28), y1: bottom - i * h / 5, y2: bottom - i * h / 5, stroke: 'var(--glass)', 'stroke-width': 1.5 }, g);
+  el('rect', { x: x1 - 16, y: top + 18, width: 6, height: h * .55, rx: 3, fill: 'rgba(255,255,255,.55)' }, g);
+  return {
+    g, layer, liquid,
+    level(lh) {
+      liquid.setAttribute('y', bottom - lh); liquid.setAttribute('height', lh);
+      surf.setAttribute('y1', bottom - lh); surf.setAttribute('y2', bottom - lh); surf.setAttribute('opacity', lh > 2 ? 1 : 0);
+    }
+  };
+}
+
+/* ───────── 상태 ───────── */
+const S = { step: 0, done: STEPS.map(() => false) };
+const toastEl = document.getElementById('toast');
+let toastT;
+function toast(s) {
+  toastEl.textContent = s; toastEl.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('show'), 2400);
+}
+const nextBtn = document.getElementById('next');
+function renderPanel() {
+  const st = STEPS[S.step];
+  document.getElementById('tag').textContent = st.tag;
+  document.getElementById('count').textContent = `${S.step + 1} / ${STEPS.length}`;
+  document.getElementById('num').textContent = S.step + 1;
+  document.getElementById('stext').textContent = st.text;
+  document.getElementById('hint').textContent = st.hint;
+  const last = S.step === STEPS.length - 1;
+  nextBtn.textContent = last && S.done[S.step] ? '처음부터 다시' : '다음 단계';
+  nextBtn.classList.toggle('ready', S.done[S.step]);
+  const p = (S.step + (S.done[S.step] ? 1 : 0)) / STEPS.length * 100;
+  document.getElementById('pfill').style.width = p + '%';
+  document.getElementById('pdot').style.left = p + '%';
+}
+function complete() {
+  if (S.done[S.step]) return;
+  S.done[S.step] = true;
+  if (STEPS[S.step].ok) toast(STEPS[S.step].ok);
+  renderPanel();
+  nextBtn.classList.remove('blink'); void nextBtn.offsetWidth; nextBtn.classList.add('blink');
+}
+nextBtn.addEventListener('click', () => {
+  if (!S.done[S.step]) return toast('이 단계를 먼저 마치자.');
+  if (S.step === STEPS.length - 1) return resetAll();
+  goStep(S.step + 1);
+});
+document.getElementById('restart').addEventListener('click', resetAll);
+
+/* ───────── 중화 반응 팝업 ───────── */
+const defpop = document.getElementById('defpop');
+const showDef = on => defpop.classList.toggle('show', on);
+document.getElementById('defx').addEventListener('click', () => showDef(false));
+
+/* ───────── 1단계: 반응 모형 ───────── */
+const g1 = el('g', { class: 'fade' }, svg);
+let S1;
+const P1 = { // [시작 x, y] → [혼합 비커 도착 x, y] → [만나는 x, y]
+  A: [['H', 150, 372, 812, 318, 830, 328], ['H', 222, 412, 752, 402, 775, 404],
+      ['Cl', 208, 366, 872, 262], ['Cl', 148, 414, 754, 330]],
+  B: [['OH', 466, 368, 884, 342, 862, 336], ['OH', 536, 410, 832, 406, 809, 405],
+      ['Na', 532, 362, 776, 262], ['Na', 470, 414, 884, 410]]
+};
+function buildStep1() {
+  g1.innerHTML = '';
+  const bA = beaker(g1, 180, 440, 200, 230, 'rgba(160,205,225,.55)');
+  const bB = beaker(g1, 500, 440, 200, 230, 'rgba(160,205,225,.55)');
+  const bC = beaker(g1, 820, 440, 200, 230, 'rgba(160,205,225,.55)');
+  bA.level(100); bB.level(100); bC.level(0);
+  txt(g1, 180, 488, '묽은 염산', { 'text-anchor': 'middle', 'font-size': 18, 'font-weight': 500 });
+  txt(g1, 500, 488, '수산화 나트륨 수용액', { 'text-anchor': 'middle', 'font-size': 18, 'font-weight': 500 });
+  txt(g1, 820, 488, '혼합 용액', { 'text-anchor': 'middle', 'font-size': 18, 'font-weight': 500 });
+  caption(g1, 500, 150, '농도가 같은 묽은 염산과 수산화 나트륨 수용액의 반응 모형');
+  // +
+  el('path', { d: 'M340 300 v40 M320 320 h40', stroke: 'var(--num)', 'stroke-width': 9, 'stroke-linecap': 'round' }, g1);
+  // 화살표 버튼
+  const arrow = el('g', { class: 'hit', role: 'button', 'aria-label': '혼합하기' }, g1);
+  const ring = el('circle', { cx: 660, cy: 320, r: 40, fill: 'var(--mint-soft)', class: 'pulse' }, arrow);
+  el('circle', { cx: 660, cy: 320, r: 40, fill: 'transparent' }, arrow);
+  el('path', { d: 'M632 312 h30 v-14 l26 22 l-26 22 v-14 h-30 z', fill: 'var(--num)' }, arrow);
+  const layer = el('g', {}, g1); // 입자는 비커 위 공통 레이어(이동 시 겹침 순서 유지)
+  const parts = [];
+  for (const src of ['A', 'B']) for (const p of P1[src]) {
+    const ion = makeIon(layer, p[0], p[1], p[2]);
+    ion.from = [p[1], p[2]]; ion.to = [p[3], p[4]]; ion.meet = p[5] != null ? [p[5], p[6]] : null;
+    parts.push(ion);
+  }
+  S1 = { bA, bB, bC, parts, layer, ring, mixed: false, anim: false };
+  arrow.addEventListener('click', mix);
+  bA.g.classList.add('hit'); bB.g.classList.add('hit');
+  bA.g.addEventListener('click', mix); bB.g.addEventListener('click', mix);
+}
+async function mix() {
+  if (S.step !== 0 || S1.anim) return;
+  if (S1.mixed) buildStep1(); // 다시 보기
+  showDef(false);
+  S1.anim = true; S1.ring.classList.remove('pulse'); S1.ring.setAttribute('opacity', .4);
+  const my = gen;
+  await tween(CFG.mixTime, t => {
+    S1.bA.level(100 * (1 - t)); S1.bB.level(100 * (1 - t)); S1.bC.level(200 * t);
+    for (const p of S1.parts) p.move(lerp(p.from[0], p.to[0], t), lerp(p.from[1], p.to[1], t) - Math.sin(Math.PI * t) * 90);
+  });
+  if (my !== gen) return;
+  await wait(350);
+  const react = S1.parts.filter(p => p.meet);
+  const st = react.map(p => [p.x, p.y]);
+  await tween(CFG.reactTime, t => react.forEach((p, i) => p.move(lerp(st[i][0], p.meet[0], t), lerp(st[i][1], p.meet[1], t))));
+  if (my !== gen) return;
+  // H⁺ + OH⁻ → H₂O
+  const pairs = [[react[0], react[2]], [react[1], react[3]]];
+  await tween(250, t => react.forEach(p => p.g.setAttribute('opacity', 1 - t)));
+  if (my !== gen) return;
+  pairs.forEach(([h, oh]) => {
+    makeIon(S1.layer, 'H2O', (h.x + oh.x) / 2, (h.y + oh.y) / 2, true);
+    h.g.remove(); oh.g.remove();
+  });
+  await wait(400);
+  if (my !== gen) return;
+  S1.mixed = true; S1.anim = false;
+  S1.ring.setAttribute('opacity', 1);
+  showDef(true);
+  complete();
+}
+
+/* ───────── 2단계: 그래프 해석 ───────── */
+const g2 = el('g', { class: 'fade', opacity: 0, display: 'none' }, svg);
+const GX = i => 520 + i * 100;
+const GY = t => 390 - (t - CFG.tempMin) / (CFG.tempMax - CFG.tempMin) * 300;
+const THY = t => 372 - (t - 20) / 10 * 270; // 온도계 눈금 위치
+// 비커 속 입자 자리: 아래 줄부터 채운다 (염산 입자가 먼저 바닥에, 넣은 입자가 위에)
+const SC2 = 0.8; // 2단계 입자 크기 배율
+const SLOTS = (() => { // 아래 줄부터 채움, 줄마다 순서를 바꿔 좌우가 섞이게
+  const cols = [82, 126, 170, 214], order = [[0, 2, 1, 3], [1, 3, 0, 2], [2, 0, 3, 1], [3, 1, 2, 0]], out = [];
+  for (let r = 0; r < 4; r++) for (const c of order[r]) out.push([cols[c], 380 - r * 46]);
+  return out;
+})();
+const SPOUT = [178, 112]; // 수산화 나트륨 수용액이 나오는 곳
+let S2;
+function buildStep2() {
+  g2.innerHTML = '';
+  // 비커 + 온도계
+  const b = beaker(g2, 165, 400, 210, 260, 'transparent');
+  b.level(0);
+  const th = el('g', {}, g2);
+  el('rect', { x: 244, y: 88, width: 16, height: 300, rx: 8, fill: 'var(--paper)', stroke: 'var(--glass)', 'stroke-width': 2 }, th);
+  el('circle', { cx: 252, cy: 390, r: 13, fill: 'var(--red)', stroke: 'var(--glass)', 'stroke-width': 2 }, th);
+  const col = el('rect', { x: 248, width: 8, y: 380, height: 10, rx: 4, fill: 'var(--red)' }, th);
+  b.liquid.style.transition = 'fill .6s';
+  // 온도 표시창
+  el('rect', { x: 276, y: 300, width: 130, height: 56, rx: 12, fill: 'var(--ink)' }, g2);
+  txt(g2, 288, 318, '온도', { 'font-size': 12, fill: 'var(--paper)', opacity: .75, class: '' });
+  const read = txt(g2, 396, 346, '--.- ℃', { 'text-anchor': 'end', 'font-size': 26, class: 'mono', fill: '#7ff0c0' });
+  // 붓는 비커 (수산화 나트륨 수용액)
+  const pour = el('g', { opacity: 0, class: 'fade' }, g2);
+  const pg = el('g', { transform: 'translate(132 92) rotate(58)' }, pour);
+  el('path', { d: 'M-30 -38 L-30 30 Q-30 40 -20 40 L20 40 Q30 40 30 30 L30 -38', fill: 'var(--glass-fill)', stroke: 'var(--glass)', 'stroke-width': 3 }, pg);
+  const pliq = el('rect', { x: -28, y: 0, width: 56, height: 38, rx: 6, fill: 'rgba(160,205,225,.6)' }, pg);
+  const plbl = txt(pour, 60, 40, '', { 'font-size': 14, fill: 'var(--muted)' });
+  const comp1 = txt(g2, 150, 432, '', { 'text-anchor': 'middle', 'font-size': 14.5 });
+  const comp2 = txt(g2, 150, 454, '', { 'text-anchor': 'middle', 'font-size': 14.5 });
+
+  // 그래프 틀
+  const ax = el('g', {}, g2);
+  for (let t = CFG.tempMin; t <= CFG.tempMax; t++) {
+    el('line', { x1: 470, x2: 950, y1: GY(t), y2: GY(t), stroke: 'var(--line)', 'stroke-width': 1, 'stroke-dasharray': t === CFG.tempMin ? '' : '3 5' }, ax);
+    txt(ax, 460, GY(t) + 5, String(t), { 'text-anchor': 'end', 'font-size': 14, class: 'lbl mut' });
+  }
+  el('line', { x1: 470, x2: 470, y1: 80, y2: 390, stroke: 'var(--ink)', 'stroke-width': 1.5 }, ax);
+  el('line', { x1: 470, x2: 960, y1: 390, y2: 390, stroke: 'var(--ink)', 'stroke-width': 1.5 }, ax);
+  el('path', { d: 'M462 400 l8 -6 l8 6 M462 408 l8 -6 l8 6', fill: 'none', stroke: 'var(--ink)', 'stroke-width': 1.5 }, ax); // 축 생략 표시
+  for (let i = 0; i < 5; i++) el('line', { x1: GX(i), x2: GX(i), y1: 80, y2: 390, stroke: 'var(--line)', 'stroke-width': 1 }, ax);
+  const yt = txt(ax, 0, 0, '온도(℃)', { 'font-size': 14, 'text-anchor': 'middle', transform: 'translate(418 235) rotate(-90)' });
+  txt(ax, 992, 382, '부피(mL)', { 'text-anchor': 'end', 'font-size': 14 });
+  txt(ax, 462, 444, '묽은 염산', { 'text-anchor': 'end', 'font-size': 14 });
+  txt(ax, 462, 474, '수산화 나트륨 수용액', { 'text-anchor': 'end', 'font-size': 14 });
+  caption(ax, 715, 30, '농도와 온도가 같은 묽은 염산과 수산화 나트륨 수용액의 중화 반응');
+  // 범례
+  el('circle', { cx: 600, cy: 60, r: 8, fill: CFG.btb.neutral }, ax);
+  txt(ax, 614, 65, 'BTB 용액을 넣은 혼합 용액의 색', { 'font-size': 13, class: 'lbl mut' });
+
+  const plot = el('g', {}, g2);
+  // 부피 버튼 (x축 눈금 자리)
+  const btns = COMBOS.map((c, i) => {
+    const g = el('g', { class: 'vbtn hit', role: 'button', 'aria-label': `염산 ${c[0]} mL, 수산화 나트륨 수용액 ${c[1]} mL` }, g2);
+    el('rect', { x: GX(i) - 40, y: 412, width: 80, height: 74, rx: 14 }, g);
+    txt(g, GX(i), 446, String(c[0]), { 'text-anchor': 'middle', 'font-size': 21, class: '' });
+    txt(g, GX(i), 476, String(c[1]), { 'text-anchor': 'middle', 'font-size': 21, class: '' });
+    g.addEventListener('click', () => measure(i));
+    return g;
+  });
+  // 액성 표시 버튼
+  const lb = el('g', { class: 'vbtn hit', display: 'none', role: 'button' }, g2);
+  el('rect', { x: 850, y: 38, width: 120, height: 48, rx: 24 }, lb);
+  txt(lb, 910, 68, '액성 표시', { 'text-anchor': 'middle', 'font-size': 16, class: '' });
+  lb.addEventListener('click', showLabels);
+
+  S2 = { b, col, read, comp1, comp2, plot, btns, lb, pour, pliq, plbl, meas: new Set(), cur: -1, labels: false, parts: el('g', {}, b.layer) };
+  drawPlot();
+}
+async function measure(i) {
+  if (S.step !== 1) return;
+  const my = ++gen;
+  S2.cur = i;
+  S2.btns.forEach((b, j) => { b.classList.toggle('sel', j === i); b.classList.toggle('done', S2.meas.has(j) && j !== i); });
+  const [a, bb] = COMBOS[i];
+  const nH = a / 2, nOH = bb / 2; // 2 mL = 입자 1쌍
+  const L0 = Math.max(190 * a / 12, 46); // 처음 염산의 높이
+  // ① 묽은 염산(+BTB)만 들어 있는 상태
+  S2.comp1.textContent = `묽은 염산 ${a} mL`;
+  S2.comp2.textContent = '';
+  const y0 = THY(CFG.startTemp);
+  S2.read.textContent = CFG.startTemp.toFixed(1) + ' ℃';
+  S2.col.setAttribute('y', y0); S2.col.setAttribute('height', 390 - y0);
+  S2.b.liquid.setAttribute('fill', CFG.btb.acid);
+  S2.b.liquid.setAttribute('fill-opacity', .42);
+  S2.b.level(L0);
+  S2.parts.innerHTML = '';
+  const hs = [], ohs = [];
+  let n = 0;
+  for (let k = 0; k < nH; k++) {
+    const s1 = SLOTS[n++], s2 = SLOTS[n++];
+    const [sh, sc] = k % 2 ? [s2, s1] : [s1, s2]; // 좌우가 섞이도록 번갈아 배치
+    hs.push(Object.assign(makeIon(S2.parts, 'H', sh[0], sh[1], false, SC2), { slot: sh })); makeIon(S2.parts, 'Cl', sc[0], sc[1], false, SC2);
+  }
+  // ② 수산화 나트륨 수용액 넣기
+  S2.plbl.textContent = `수산화 나트륨 수용액 ${bb} mL`;
+  S2.pliq.setAttribute('y', 0); S2.pliq.setAttribute('height', 38);
+  S2.pour.setAttribute('opacity', 1);
+  await wait(450);
+  if (my !== gen) return;
+  S2.comp2.textContent = `+ 수산화 나트륨 수용액 ${bb} mL`;
+  const drops = [];
+  for (let k = 0; k < nOH; k++) {
+    const s1 = SLOTS[n++], s2 = SLOTS[n++];
+    const [so, sn] = k % 2 ? [s1, s2] : [s2, s1];
+    const oh = makeIon(S2.parts, 'OH', SPOUT[0], SPOUT[1], false, SC2); oh.to = so; ohs.push(oh); drops.push(oh);
+    const na = makeIon(S2.parts, 'Na', SPOUT[0], SPOUT[1], false, SC2); na.to = sn; drops.push(na);
+  }
+  drops.forEach(d => d.g.setAttribute('opacity', 0));
+  const span = .45, step = drops.length > 1 ? (1 - span) / (drops.length - 1) : 0;
+  await tween(CFG.pourTime, t => {
+    S2.b.level(lerp(L0, 190, t));
+    S2.pliq.setAttribute('y', 38 * t); S2.pliq.setAttribute('height', 38 * (1 - t));
+    drops.forEach((d, k) => {
+      const u = Math.max(0, Math.min(1, (t - k * step) / span));
+      d.g.setAttribute('opacity', u > 0 ? 1 : 0);
+      d.move(lerp(SPOUT[0], d.to[0], u), lerp(SPOUT[1], d.to[1], u * u));
+    });
+  });
+  if (my !== gen) return;
+  S2.pour.setAttribute('opacity', 0);
+  await wait(300);
+  if (my !== gen) return;
+  // ③ H⁺ + OH⁻ → H₂O : 가까운 것끼리 짝짓기
+  const pairs = [];
+  const freeH = hs.slice();
+  for (const oh of ohs) {
+    if (!freeH.length) break;
+    let bi = 0, bd = Infinity;
+    freeH.forEach((h, j) => { const d = (h.x - oh.x) ** 2 + (h.y - oh.y) ** 2; if (d < bd) { bd = d; bi = j; } });
+    pairs.push([freeH.splice(bi, 1)[0], oh]);
+  }
+  const st = pairs.map(([h, oh]) => [h.x, h.y, oh.x, oh.y]);
+  await tween(CFG.reactTime, t => pairs.forEach(([h, oh], j) => {
+    const [hx, hy, ox, oy] = st[j];
+    oh.move(lerp(ox, hx + 16, t), lerp(oy, hy, t)); h.move(lerp(hx, hx - 6, t), hy);
+  }));
+  if (my !== gen) return;
+  await tween(220, t => pairs.forEach(([h, oh]) => { h.g.setAttribute('opacity', 1 - t); oh.g.setAttribute('opacity', 1 - t); }));
+  if (my !== gen) return;
+  pairs.forEach(([h, oh]) => { makeIon(S2.parts, 'H2O', h.slot[0], h.slot[1], true, SC2); h.g.remove(); oh.g.remove(); });
+  S2.b.liquid.setAttribute('fill', CFG.btb[liq(COMBOS[i])]);
+  // ④ 온도계
+  const T = TEMPS[i];
+  await tween(CFG.thermoTime, t => {
+    const y = lerp(y0, THY(T), t);
+    S2.col.setAttribute('y', y); S2.col.setAttribute('height', 390 - y);
+    S2.read.textContent = lerp(CFG.startTemp, T, t).toFixed(1) + ' ℃';
+  });
+  if (my !== gen) return;
+  S2.read.textContent = T.toFixed(1) + ' ℃';
+  S2.meas.add(i);
+  drawPlot(i);
+  if (S2.meas.size === 5) {
+    if (CFG.labelMode === 'button' && !S2.labels) S2.lb.setAttribute('display', '');
+    if (CFG.labelMode === 'auto') showLabels();
+    complete();
+  }
+}
+function drawPlot(newest) {
+  const p = S2.plot; p.innerHTML = '';
+  // BTB 색
+  for (let i = 0; i < 5; i++) {
+    if (S2.meas.has(i)) el('circle', { cx: GX(i), cy: 366, r: 13, fill: CFG.btb[liq(COMBOS[i])], class: i === newest ? 'pop' : '' }, p);
+    else el('circle', { cx: GX(i), cy: 366, r: 13, fill: 'none', stroke: 'var(--line)', 'stroke-width': 2, 'stroke-dasharray': '4 4' }, p);
+  }
+  // 선
+  for (let i = 0; i < 4; i++) if (S2.meas.has(i) && S2.meas.has(i + 1))
+    el('line', { x1: GX(i), y1: GY(TEMPS[i]), x2: GX(i + 1), y2: GY(TEMPS[i + 1]), stroke: 'var(--red)', 'stroke-width': 3 }, p);
+  // 점
+  for (const i of S2.meas) {
+    el('circle', { cx: GX(i), cy: GY(TEMPS[i]), r: 7, fill: 'var(--red)', class: i === newest ? 'pop' : '' }, p);
+    txt(p, GX(i), GY(TEMPS[i]) - 15, TEMPS[i].toFixed(1), { 'text-anchor': 'middle', 'font-size': 15, fill: 'var(--red)', class: 'mono' });
+  }
+  if (S2.labels) {
+    const yb = 336;
+    const span = (x1, x2, label, color) => {
+      el('path', { d: `M${x1} ${yb - 7} v14 M${x1} ${yb} H${x2} M${x2} ${yb - 7} v14 M${x1 + 10} ${yb - 5} l-10 5 l10 5 M${x2 - 10} ${yb - 5} l10 5 l-10 5`, fill: 'none', stroke: 'var(--ink)', 'stroke-width': 1.5 }, p);
+      const cx = (x1 + x2) / 2;
+      el('rect', { x: cx - 32, y: yb - 13, width: 64, height: 26, rx: 6, fill: color, class: 'pop' }, p);
+      txt(p, cx, yb + 6, label, { 'text-anchor': 'middle', 'font-size': 15, 'font-weight': 700, fill: '#1d2626', class: '' });
+    };
+    span(GX(0), GX(2), '염기성', '#9fd0f0');
+    span(GX(2), GX(4), '산성', '#f6b7a6');
+    const ty = GY(TEMPS[2]) - 50;
+    el('rect', { x: GX(2) - 28, y: ty - 14, width: 56, height: 28, rx: 6, fill: '#a9dfa0', class: 'pop' }, p);
+    txt(p, GX(2), ty + 6, '중성', { 'text-anchor': 'middle', 'font-size': 15, 'font-weight': 700, fill: '#1d2626', class: '' });
+  }
+}
+function showLabels() {
+  if (S.step !== 1 || S2.meas.size < 5 || S2.labels || CFG.labelMode === 'none') return;
+  S2.labels = true; S2.lb.setAttribute('display', 'none'); drawPlot();
+}
+
+
+/* ───────── 3단계: 이온 수 변화 ───────── */
+const g3 = el('g', { class: 'fade', opacity: 0, display: 'none' }, svg);
+const ICOL = { Cl: '#2f9a4a', H: '#3557b7', Na: '#e0a020', OH: '#d03645' }; // 원본 그래프 색
+const IX = k => 500 + k / CFG.ionAdds * 420;
+const IY = c => 400 - c / (CFG.ionAdds + 1) * 300;
+const B3 = { cx: 180, bottom: 420, w: 250, h: 300 };
+const SC3 = 0.85; // 3단계 입자 크기 배율
+const SLOT3 = (() => { // 5열, 아래 줄부터
+  const out = [], cols = [80, 130, 180, 230, 280];
+  for (let r = 0; r < 6; r++) for (let c = 0; c < 5; c++)
+    out.push([cols[(c * 2 + r) % 5], 396 - r * 48]);
+  return out;
+})();
+const UNIT3 = 250 / (CFG.ionStart + CFG.ionAdds); // 1번 넣는 양에 해당하는 용액 높이
+let S3;
+function buildStep3() {
+  g3.innerHTML = '';
+  const b = beaker(g3, B3.cx, B3.bottom, B3.w, B3.h, 'rgba(160,205,225,.55)');
+  b.level(UNIT3 * CFG.ionStart);
+  // 붓는 비커
+  const pour = el('g', { opacity: 0, class: 'fade' }, g3);
+  const pg = el('g', { transform: 'translate(150 66) rotate(58)' }, pour);
+  el('path', { d: 'M-26 -32 L-26 26 Q-26 34 -18 34 L18 34 Q26 34 26 26 L26 -32', fill: 'var(--glass-fill)', stroke: 'var(--glass)', 'stroke-width': 3 }, pg);
+  el('rect', { x: -24, y: 6, width: 48, height: 26, rx: 6, fill: 'rgba(160,205,225,.6)' }, pg);
+  txt(g3, B3.cx, 470, '묽은 염산 + 수산화 나트륨 수용액', { 'text-anchor': 'middle', 'font-size': 15 });
+  // 이온 수 칩
+  const chips = {};
+  ['H', 'Cl', 'Na', 'OH'].forEach((k, i) => {
+    const x = 70 + i * 74;
+    el('rect', { x: x - 32, y: 490, width: 66, height: 46, rx: 23, fill: 'var(--panel)', stroke: ICOL[k], 'stroke-width': 2 }, g3);
+    const m = makeIon(g3, k, x - 12, 513); m.g.setAttribute('transform', `translate(${x - 12},513) scale(.75)`);
+    chips[k] = txt(g3, x + 22, 520, '0', { 'text-anchor': 'middle', 'font-size': 18, 'font-weight': 700, class: 'mono', fill: ICOL[k] });
+  });
+  // 그래프 틀
+  const ax = el('g', {}, g3);
+  for (let k = 0; k <= CFG.ionAdds; k++) el('line', { x1: IX(k), x2: IX(k), y1: 90, y2: 400, stroke: 'var(--line)', 'stroke-dasharray': '3 5' }, ax);
+  el('line', { x1: 500, x2: 500, y1: 70, y2: 400, stroke: 'var(--ink)', 'stroke-width': 1.8 }, ax);
+  el('line', { x1: 500, x2: 950, y1: 400, y2: 400, stroke: 'var(--ink)', 'stroke-width': 1.8 }, ax);
+  el('path', { d: 'M494 78 l6 -10 l6 10 M942 394 l10 6 l-10 6', fill: 'var(--ink)', stroke: 'var(--ink)' }, ax);
+  txt(ax, 0, 0, '이온 수', { 'font-size': 16, 'text-anchor': 'middle', transform: 'translate(470 235) rotate(-90)' });
+  caption(ax, 725, 40, '농도가 같은 묽은 염산에 수산화 나트륨 수용액을 넣을 때 이온 수 변화');
+  txt(ax, 490, 422, 'O', { 'text-anchor': 'end', 'font-size': 16 });
+  txt(ax, 950, 430, '넣어 준 NaOH 수용액의 부피', { 'text-anchor': 'end', 'font-size': 16 });
+  const plot = el('g', {}, g3);
+  // 버튼
+  const mk = (x, w, label, fn) => {
+    const g = el('g', { class: 'vbtn hit', role: 'button' }, g3);
+    el('rect', { x, y: 470, width: w, height: 54, rx: 27 }, g);
+    const t = txt(g, x + w / 2, 503, label, { 'text-anchor': 'middle', 'font-size': 18, class: '' });
+    g.addEventListener('click', fn);
+    return { g, t };
+  };
+  const addBtn = mk(600, 150, '넣기', () => addOnce());
+  const allBtn = mk(766, 150, '끝까지', () => addAll());
+  S3 = { b, pour, chips, plot, addBtn, allBtn, parts: el('g', {}, b.layer), k: 0, busy: false,
+         ions: [], hist: [] };
+  // 처음 염산: H⁺, Cl⁻
+  for (let i = 0; i < CFG.ionStart; i++) {
+    const s1 = SLOT3[i * 2], s2 = SLOT3[i * 2 + 1];
+    const [sh, sc] = i % 2 ? [s2, s1] : [s1, s2];
+    S3.ions.push(Object.assign(makeIon(S3.parts, 'H', sh[0], sh[1], false, SC3), { slot: sh }));
+    S3.ions.push(Object.assign(makeIon(S3.parts, 'Cl', sc[0], sc[1], false, SC3), { slot: sc }));
+  }
+  S3.used = CFG.ionStart * 2;
+  record3(); drawIonPlot();
+}
+const count3 = k => S3.ions.filter(p => p.k === k).length;
+function record3() {
+  const c = { H: count3('H'), Cl: count3('Cl'), Na: count3('Na'), OH: count3('OH') };
+  S3.hist[S3.k] = c;
+  for (const k in c) S3.chips[k].textContent = c[k];
+}
+function drawIonPlot() {
+  const p = S3.plot; p.innerHTML = '';
+  const h = S3.hist;
+  for (const k of ['Cl', 'Na', 'H', 'OH']) {
+    const pts = h.map((c, i) => `${IX(i)},${IY(c[k])}`).join(' ');
+    if (h.length > 1) el('polyline', { points: pts, fill: 'none', stroke: ICOL[k], 'stroke-width': 4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, p);
+    else el('circle', { cx: IX(0), cy: IY(h[0][k]), r: 4, fill: ICOL[k] }, p);
+  }
+  // 선 이름 (현재 끝점 옆)
+  const last = h.length - 1, c = h[last];
+  const lab = { H: 'H⁺', Cl: 'Cl⁻', Na: 'Na⁺', OH: 'OH⁻' };
+  const placed = [];
+  for (const k of ['Cl', 'Na', 'H', 'OH']) {
+    let y = IY(c[k]) - 12;
+    if (c[k] === 0) { if (k === 'H' && c.OH === 0) continue; y = 388; } // 0인 선은 축 위
+    while (placed.some(v => Math.abs(v - y) < 18)) y -= 18;
+    placed.push(y);
+    txt(p, Math.min(IX(last) + 10, 958), y, lab[k], { 'font-size': 17, 'font-weight': 700, fill: ICOL[k], class: '' });
+  }
+  // 완전히 중화됨
+  const eq = CFG.ionStart;
+  if (last >= eq) {
+    const x = IX(eq);
+    // 원본처럼 OH⁻ 선 아래, 가로축 위 빈 곳에 둔다
+    el('line', { x1: x, y1: 400, x2: x + 92, y2: 376, stroke: 'var(--muted)', 'stroke-width': 1.2 }, p);
+    el('rect', { x: x + 92, y: 350, width: 88, height: 46, rx: 10, fill: '#f7c7bd', class: last === eq ? 'pop' : '' }, p);
+    txt(p, x + 136, 369, '완전히', { 'text-anchor': 'middle', 'font-size': 14, fill: '#3b2a26', class: '' });
+    txt(p, x + 136, 387, '중화됨.', { 'text-anchor': 'middle', 'font-size': 14, fill: '#3b2a26', class: '' });
+  }
+}
+async function addOnce() {
+  if (S.step !== 2 || S3.busy || S3.k >= CFG.ionAdds) return false;
+  S3.busy = true;
+  const my = gen;
+  S3.pour.setAttribute('opacity', 1);
+  const spout = [176, 52];
+  const na = makeIon(S3.parts, 'Na', spout[0], spout[1], false, SC3); na.slot = SLOT3[S3.used++];
+  const oh = makeIon(S3.parts, 'OH', spout[0], spout[1], false, SC3);
+  const hs = S3.ions.filter(p => p.k === 'H').sort((a, b) => a.y - b.y);
+  const target = hs[0]; // 가장 위의 H⁺와 반응
+  oh.slot = target ? [target.x + 24, target.y] : SLOT3[S3.used++];
+  const l0 = UNIT3 * (CFG.ionStart + S3.k);
+  await tween(CFG.addTime, t => {
+    S3.b.level(l0 + UNIT3 * t);
+    na.move(lerp(spout[0], na.slot[0], t), lerp(spout[1], na.slot[1], t * t));
+    const u = Math.max(0, t - .12) / .88;
+    oh.move(lerp(spout[0], oh.slot[0], u), lerp(spout[1], oh.slot[1], u * u));
+  });
+  if (my !== gen) return false;
+  S3.ions.push(na);
+  if (target) {
+    await tween(CFG.reactTime * .6, t => { oh.move(lerp(target.x + 24, target.x + 10, t), target.y); target.move(lerp(target.slot[0], target.slot[0] - 10, t), target.y); });
+    if (my !== gen) return false;
+    await tween(200, t => { oh.g.setAttribute('opacity', 1 - t); target.g.setAttribute('opacity', 1 - t); });
+    if (my !== gen) return false;
+    oh.g.remove(); target.g.remove();
+    S3.ions.splice(S3.ions.indexOf(target), 1);
+    S3.ions.push(Object.assign(makeIon(S3.parts, 'H2O', target.slot[0], target.slot[1], true, SC3), { slot: target.slot }));
+  } else {
+    S3.ions.push(Object.assign(oh, { slot: oh.slot }));
+  }
+  S3.k++;
+  record3(); drawIonPlot();
+  if (S3.k >= CFG.ionAdds) {
+    S3.pour.setAttribute('opacity', 0);
+    S3.addBtn.g.setAttribute('opacity', .4); S3.allBtn.g.setAttribute('opacity', .4);
+    complete();
+  }
+  S3.busy = false;
+  return true;
+}
+async function addAll() {
+  if (S3.auto) return;
+  S3.auto = true;
+  const my = gen;
+  while (S3.k < CFG.ionAdds && my === gen) {
+    if (S3.busy) { await wait(100); continue; }
+    await addOnce();
+    await wait(150);
+  }
+  S3.auto = false;
+}
+
+/* ───────── 단계 전환 ───────── */
+function goStep(n) {
+  gen++;
+  showDef(false);
+  S.step = n;
+  const groups = [g1, g2, g3], builds = [buildStep1, buildStep2, buildStep3];
+  groups.forEach((g, i) => { if (i !== n) { g.setAttribute('opacity', 0); g.setAttribute('display', 'none'); } });
+  builds[n]();
+  groups[n].setAttribute('display', '');
+  requestAnimationFrame(() => groups[n].setAttribute('opacity', 1));
+  nextBtn.classList.remove('blink');
+  renderPanel();
+}
+function resetAll() {
+  S.done = STEPS.map(() => false);
+  toastEl.classList.remove('show');
+  goStep(0);
+}
+
+/* ───────── 교사용 단축키 ─────────
+   스페이스·Enter·→ : 지금 할 동작(혼합 → 다음 단계 → 다음 부피 조합 → 액성 표시 → 다음 단계 → 넣기)
+   1~5 : 2단계 부피 조합 바로 선택,  R : 처음부터 */
+addEventListener('keydown', e => {
+  const k = e.key;
+  if (k === ' ' || k === 'Enter' || k === 'ArrowRight') {
+    e.preventDefault();
+    if (S.step === 0) { if (!S1.mixed) mix(); else if (!S1.anim) goStep(1); }
+    else if (S.step === 1) {
+      const nx = COMBOS.findIndex((_, i) => !S2.meas.has(i));
+      if (nx >= 0) measure(nx);
+      else if (!S2.labels && CFG.labelMode === 'button') showLabels();
+      else goStep(2);
+    } else addOnce();
+  } else if (/^[1-5]$/.test(k) && S.step === 1) measure(+k - 1);
+  else if (k === 'r' || k === 'R') resetAll();
+});
+
+goStep(0);
+</script>
+</body>
+</html>
